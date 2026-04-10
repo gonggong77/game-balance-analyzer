@@ -17,6 +17,7 @@ load_dotenv()
 
 from balance_checker import run_analysis, report_to_dict
 from claude_analyzer import analyze_with_claude_sync
+from multi_agent_pipeline import run_pipeline
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
@@ -112,7 +113,87 @@ def job_status(job_id):
         "status": job["status"],   # running | done | error
         "result": job.get("result", ""),
         "error": job.get("error", ""),
+        "agent_status": job.get("agent_status", {}),
+        "steps": job.get("steps", {}),
     })
+
+
+# ──────────────────────────────────────────────
+# 멀티 에이전트 파이프라인 분석
+# ──────────────────────────────────────────────
+
+@app.route("/api/analyze/pipeline", methods=["POST"])
+def analyze_pipeline():
+    """
+    멀티 에이전트 파이프라인 분석.
+    multipart/form-data:
+      - files[]: CSV 파일들
+      - scripts[]: C# 스크립트 파일들 (optional)
+      - schema: schema.json (optional)
+      - context: 사용자 추가 설명 (optional)
+      - session_id: 대화 세션 ID
+    반환: {"job_id": "...", "session_id": "..."}
+    """
+    session_id = request.form.get("session_id", "default")
+    user_context = request.form.get("context", "")
+
+    tmp_dir = tempfile.mkdtemp(prefix="pipeline_")
+    data_dir = os.path.join(tmp_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    # CSV 파일 저장
+    for f in request.files.getlist("files[]"):
+        if f.filename.lower().endswith(".csv"):
+            f.save(os.path.join(data_dir, Path(f.filename).name))
+
+    # C# 스크립트 저장 (루트 및 data 디렉토리 모두)
+    for f in request.files.getlist("scripts[]"):
+        if f.filename.lower().endswith(".cs"):
+            f.save(os.path.join(tmp_dir, Path(f.filename).name))
+
+    # schema.json 처리
+    schema_file = request.files.get("schema")
+    if schema_file:
+        schema_file.save(os.path.join(tmp_dir, "schema.json"))
+    else:
+        default_schema = Path(__file__).parent / "schema.json"
+        if default_schema.exists():
+            shutil.copy(default_schema, os.path.join(tmp_dir, "schema.json"))
+
+    job_id = str(uuid.uuid4())
+    JOBS[job_id] = {
+        "status": "running",
+        "result": "",
+        "error": "",
+        "created_at": time.time(),
+        "agent_status": {"agent1": "pending", "agent2": "pending", "agent3": "pending", "agent4": "pending"},
+        "steps": {},
+    }
+
+    def on_progress(agent_key: str, status: str) -> None:
+        if job_id in JOBS:
+            JOBS[job_id]["agent_status"][agent_key] = status
+
+    def run():
+        try:
+            pipeline_result = run_pipeline(
+                base_dir=tmp_dir,
+                user_context=user_context,
+                on_progress=on_progress,
+            )
+            JOBS[job_id]["result"] = pipeline_result["report"]
+            JOBS[job_id]["steps"] = pipeline_result["steps"]
+            JOBS[job_id]["status"] = "done"
+        except Exception as e:
+            JOBS[job_id]["error"] = str(e)
+            JOBS[job_id]["status"] = "error"
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            _cleanup_jobs()
+
+    threading.Thread(target=run, daemon=True).start()
+
+    return jsonify({"job_id": job_id, "session_id": session_id})
 
 
 # ──────────────────────────────────────────────

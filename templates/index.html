@@ -19,6 +19,7 @@
       --critical: #ff5c7a;
       --warning: #ffb547;
       --ok: #4cde9a;
+      --info: #6c63ff;
       --radius: 12px;
     }
 
@@ -45,7 +46,7 @@
     /* ── Drop Zone ── */
     #drop-zone {
       width: 100%;
-      max-width: 700px;
+      max-width: 760px;
       border: 2px dashed var(--border);
       border-radius: var(--radius);
       background: var(--surface);
@@ -66,7 +67,7 @@
     /* ── File List ── */
     #file-list-wrap {
       width: 100%;
-      max-width: 700px;
+      max-width: 760px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -103,12 +104,13 @@
       align-items: center;
       gap: 8px;
     }
-    #file-list li::before { content: "📄"; font-size: 0.9rem; }
+    #file-list li.csv-file::before  { content: "📊"; font-size: 0.9rem; }
+    #file-list li.cs-file::before   { content: "📝"; font-size: 0.9rem; }
 
     /* ── Context + Controls ── */
     .controls {
       width: 100%;
-      max-width: 700px;
+      max-width: 760px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -147,6 +149,13 @@
     button.primary:hover:not(:disabled) { background: var(--accent-hover); }
     button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    button.primary.pipeline-btn {
+      background: linear-gradient(135deg, #6c63ff 0%, #a855f7 100%);
+    }
+    button.primary.pipeline-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #8b85ff 0%, #c084fc 100%);
+    }
+
     button.secondary {
       background: var(--surface);
       color: var(--text-dim);
@@ -159,11 +168,181 @@
     }
     button.secondary:hover { border-color: var(--accent); color: var(--text); }
 
+    /* ── Status Bar ── */
+    #status {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      width: 100%;
+      max-width: 760px;
+      text-align: right;
+    }
+    #status.error { color: var(--critical); }
+    #status.ok { color: var(--ok); }
+
+    /* ── 파이프라인 진행 표시 ── */
+    #pipeline-wrap {
+      width: 100%;
+      max-width: 760px;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .pipeline-title {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .pipeline-phase {
+      display: flex;
+      gap: 12px;
+    }
+    .pipeline-phase.single {
+      flex-direction: column;
+    }
+    .agent-card {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      transition: border-color 0.3s;
+    }
+    .agent-card.running {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(108,99,255,0.3);
+    }
+    .agent-card.done {
+      border-color: rgba(76,222,154,0.5);
+    }
+    .agent-card.error {
+      border-color: rgba(255,92,122,0.5);
+    }
+    .agent-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .agent-icon {
+      font-size: 1.3rem;
+    }
+    .agent-name {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .agent-role {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .agent-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      margin-left: auto;
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    .agent-card.pending .agent-status-dot { background: var(--border); }
+    .agent-card.running .agent-status-dot {
+      background: var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .agent-card.done    .agent-status-dot { background: var(--ok); }
+    .agent-card.error   .agent-status-dot { background: var(--critical); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(1.4); }
+    }
+
+    .agent-progress-text {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+    .agent-card.running .agent-progress-text { color: var(--accent); }
+    .agent-card.done    .agent-progress-text { color: var(--ok); }
+    .agent-card.error   .agent-progress-text { color: var(--critical); }
+
+    /* ── 파이프라인 화살표 ── */
+    .pipeline-arrow {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      padding: 2px 0;
+    }
+
+    /* ── 에이전트 결과 (접기/펼치기) ── */
+    #agent-steps-wrap {
+      width: 100%;
+      max-width: 760px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .step-accordion {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .step-accordion-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 18px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .step-accordion-header:hover { background: #1e2038; }
+    .step-accordion-title {
+      font-size: 0.87rem;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+    .step-accordion-arrow {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      transition: transform 0.2s;
+    }
+    .step-accordion-header.open .step-accordion-arrow {
+      transform: rotate(180deg);
+    }
+    .step-accordion-body {
+      display: none;
+      padding: 0 18px 18px;
+      border-top: 1px solid var(--border);
+    }
+    .step-accordion-body.open { display: block; }
+    .step-content {
+      font-size: 0.83rem;
+      line-height: 1.7;
+      color: var(--text);
+      overflow-x: auto;
+      padding-top: 14px;
+    }
+
     /* ── Results ── */
     #result-wrap {
       width: 100%;
-      max-width: 700px;
+      max-width: 760px;
       display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .result-label {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
     #result-box {
       background: var(--surface);
@@ -186,40 +365,22 @@
     }
     @keyframes blink { 50% { opacity: 0; } }
 
-    /* ── Status Bar ── */
-    #status {
-      font-size: 0.82rem;
-      color: var(--text-dim);
-      width: 100%;
-      max-width: 700px;
-      text-align: right;
-    }
-    #status.error { color: var(--critical); }
-    #status.ok { color: var(--ok); }
-
     /* ── Markdown 렌더링 스타일 ── */
-    #result-box h1, #result-box h2, #result-box h3, #result-box h4 {
+    .md-content h1, .md-content h2, .md-content h3, .md-content h4 {
       color: var(--accent);
       margin: 1.4em 0 0.5em;
       line-height: 1.3;
     }
-    #result-box h1 { font-size: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4em; }
-    #result-box h2 { font-size: 1.1rem; }
-    #result-box h3 { font-size: 0.98rem; color: var(--accent-hover); }
-    #result-box h4 { font-size: 0.9rem; color: var(--text-dim); }
-
-    #result-box p { margin: 0.6em 0; }
-
-    #result-box strong { color: var(--text); font-weight: 700; }
-    #result-box em { color: var(--text-dim); font-style: italic; }
-
-    #result-box ul, #result-box ol {
-      margin: 0.5em 0 0.5em 1.4em;
-      line-height: 1.8;
-    }
-    #result-box li { margin: 0.1em 0; }
-
-    #result-box code {
+    .md-content h1 { font-size: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4em; }
+    .md-content h2 { font-size: 1.1rem; }
+    .md-content h3 { font-size: 0.98rem; color: var(--accent-hover); }
+    .md-content h4 { font-size: 0.9rem; color: var(--text-dim); }
+    .md-content p { margin: 0.6em 0; }
+    .md-content strong { color: var(--text); font-weight: 700; }
+    .md-content em { color: var(--text-dim); font-style: italic; }
+    .md-content ul, .md-content ol { margin: 0.5em 0 0.5em 1.4em; line-height: 1.8; }
+    .md-content li { margin: 0.1em 0; }
+    .md-content code {
       background: #22253a;
       color: #b0c0ff;
       padding: 2px 6px;
@@ -227,7 +388,7 @@
       font-family: 'Consolas', 'Fira Code', monospace;
       font-size: 0.83rem;
     }
-    #result-box pre {
+    .md-content pre {
       background: #15182a;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -235,19 +396,9 @@
       overflow-x: auto;
       margin: 0.8em 0;
     }
-    #result-box pre code {
-      background: none;
-      padding: 0;
-      color: #c8d0ff;
-    }
-
-    #result-box hr {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 1.2em 0;
-    }
-
-    #result-box blockquote {
+    .md-content pre code { background: none; padding: 0; color: #c8d0ff; }
+    .md-content hr { border: none; border-top: 1px solid var(--border); margin: 1.2em 0; }
+    .md-content blockquote {
       border-left: 3px solid var(--accent);
       margin: 0.8em 0;
       padding: 6px 16px;
@@ -255,9 +406,7 @@
       background: #1e2038;
       border-radius: 0 6px 6px 0;
     }
-
-    /* ── 테이블 ── */
-    #result-box table {
+    .md-content table {
       width: 100%;
       border-collapse: collapse;
       margin: 1em 0;
@@ -266,24 +415,22 @@
       border-radius: 8px;
       border: 1px solid var(--border);
     }
-    #result-box thead tr {
-      background: #22253a;
-    }
-    #result-box th {
+    .md-content thead tr { background: #22253a; }
+    .md-content th {
       padding: 10px 14px;
       text-align: left;
       color: var(--accent);
       font-weight: 600;
       border-bottom: 1px solid var(--border);
     }
-    #result-box td {
+    .md-content td {
       padding: 9px 14px;
       border-bottom: 1px solid #232640;
       color: var(--text);
     }
-    #result-box tbody tr:last-child td { border-bottom: none; }
-    #result-box tbody tr:nth-child(even) { background: #1d2030; }
-    #result-box tbody tr:hover { background: #252840; }
+    .md-content tbody tr:last-child td { border-bottom: none; }
+    .md-content tbody tr:nth-child(even) { background: #1d2030; }
+    .md-content tbody tr:hover { background: #252840; }
 
     /* ── 심각도 뱃지 ── */
     .badge {
@@ -295,7 +442,7 @@
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
-    .badge-critical { background: rgba(255,92,122,0.18); color: var(--critical); border: 1px solid rgba(255,92,122,0.35); }
+    .badge-critical { background: rgba(255,92,122,0.18);  color: var(--critical); border: 1px solid rgba(255,92,122,0.35); }
     .badge-warning  { background: rgba(255,181,71,0.18);  color: var(--warning);  border: 1px solid rgba(255,181,71,0.35); }
     .badge-ok       { background: rgba(76,222,154,0.15);  color: var(--ok);       border: 1px solid rgba(76,222,154,0.3); }
     .badge-info     { background: rgba(108,99,255,0.15);  color: var(--accent);   border: 1px solid rgba(108,99,255,0.3); }
@@ -313,14 +460,14 @@
   <!-- Drop Zone -->
   <div id="drop-zone">
     <div class="icon">📂</div>
-    <div class="label">CSV 폴더를 여기에 드래그앤드롭</div>
-    <div class="sub">폴더 또는 개별 CSV 파일을 드롭하세요 • 하위 폴더도 자동 탐색</div>
+    <div class="label">CSV / C# 스크립트를 여기에 드래그앤드롭</div>
+    <div class="sub">CSV 파일 + .cs 스크립트 모두 지원 • 폴더 드롭 시 자동 탐색</div>
   </div>
 
   <!-- Detected Files -->
   <div id="file-list-wrap">
     <div id="file-list-header">
-      <span id="file-count">0개 CSV 파일 감지됨</span>
+      <span id="file-count">0개 파일 감지됨</span>
       <button onclick="clearFiles()">✕ 초기화</button>
     </div>
     <ul id="file-list"></ul>
@@ -330,7 +477,8 @@
   <div class="controls">
     <textarea id="context-input" placeholder="추가 설명 (선택사항) — 예: '이 게임은 RPG이고 레벨 캡은 100입니다'"></textarea>
     <div class="btn-row">
-      <button class="primary" id="analyze-btn" onclick="startAnalysis()" disabled>분석 시작</button>
+      <button class="primary" id="analyze-btn" onclick="startAnalysis()" disabled>기본 분석</button>
+      <button class="primary pipeline-btn" id="pipeline-btn" onclick="startPipeline()" disabled>🤖 멀티 에이전트 분석</button>
       <button class="secondary" onclick="document.getElementById('context-input').value=''">지우기</button>
     </div>
   </div>
@@ -338,13 +486,115 @@
   <!-- Status -->
   <div id="status"></div>
 
-  <!-- Result -->
+  <!-- 파이프라인 진행 표시 -->
+  <div id="pipeline-wrap">
+    <div class="pipeline-title">에이전트 파이프라인 진행 중</div>
+
+    <!-- Phase 1: Agent 1 + 2 병렬 -->
+    <div class="pipeline-phase" id="phase1">
+      <div class="agent-card pending" id="card-agent1">
+        <div class="agent-card-header">
+          <span class="agent-icon">📊</span>
+          <div>
+            <div class="agent-name">Agent 1 — CSV 분석가</div>
+            <div class="agent-role">데이터 구조 및 수치 분석</div>
+          </div>
+          <div class="agent-status-dot"></div>
+        </div>
+        <div class="agent-progress-text" id="prog-agent1">대기 중</div>
+      </div>
+      <div class="agent-card pending" id="card-agent2">
+        <div class="agent-card-header">
+          <span class="agent-icon">📝</span>
+          <div>
+            <div class="agent-name">Agent 2 — 스크립트 분석가</div>
+            <div class="agent-role">C# 밸런스 로직 분석</div>
+          </div>
+          <div class="agent-status-dot"></div>
+        </div>
+        <div class="agent-progress-text" id="prog-agent2">대기 중</div>
+      </div>
+    </div>
+
+    <div class="pipeline-arrow">▼</div>
+
+    <!-- Phase 2: Agent 3 -->
+    <div class="pipeline-phase single">
+      <div class="agent-card pending" id="card-agent3">
+        <div class="agent-card-header">
+          <span class="agent-icon">🔍</span>
+          <div>
+            <div class="agent-name">Agent 3 — 리서처</div>
+            <div class="agent-role">업계 밸런스 가이드라인 웹서치 수집</div>
+          </div>
+          <div class="agent-status-dot"></div>
+        </div>
+        <div class="agent-progress-text" id="prog-agent3">대기 중</div>
+      </div>
+    </div>
+
+    <div class="pipeline-arrow">▼</div>
+
+    <!-- Phase 3: Agent 4 -->
+    <div class="pipeline-phase single">
+      <div class="agent-card pending" id="card-agent4">
+        <div class="agent-card-header">
+          <span class="agent-icon">🏆</span>
+          <div>
+            <div class="agent-name">Agent 4 — 시니어 밸런스 기획자</div>
+            <div class="agent-role">최종 종합 보고서 생성</div>
+          </div>
+          <div class="agent-status-dot"></div>
+        </div>
+        <div class="agent-progress-text" id="prog-agent4">대기 중</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 개별 에이전트 결과 (접기/펼치기) -->
+  <div id="agent-steps-wrap">
+    <div class="pipeline-title">에이전트별 상세 결과</div>
+    <div class="step-accordion" id="step-agent1">
+      <div class="step-accordion-header" onclick="toggleStep('step-agent1')">
+        <span>📊</span>
+        <span class="step-accordion-title">Agent 1 — CSV 분석 결과</span>
+        <span class="step-accordion-arrow">▼</span>
+      </div>
+      <div class="step-accordion-body">
+        <div class="step-content md-content" id="step-content-agent1">—</div>
+      </div>
+    </div>
+    <div class="step-accordion" id="step-agent2">
+      <div class="step-accordion-header" onclick="toggleStep('step-agent2')">
+        <span>📝</span>
+        <span class="step-accordion-title">Agent 2 — 스크립트 분석 결과</span>
+        <span class="step-accordion-arrow">▼</span>
+      </div>
+      <div class="step-accordion-body">
+        <div class="step-content md-content" id="step-content-agent2">—</div>
+      </div>
+    </div>
+    <div class="step-accordion" id="step-agent3">
+      <div class="step-accordion-header" onclick="toggleStep('step-agent3')">
+        <span>🔍</span>
+        <span class="step-accordion-title">Agent 3 — 리서치 결과</span>
+        <span class="step-accordion-arrow">▼</span>
+      </div>
+      <div class="step-accordion-body">
+        <div class="step-content md-content" id="step-content-agent3">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result (기본 분석 or 파이프라인 최종 보고서) -->
   <div id="result-wrap">
-    <div id="result-box"></div>
+    <div class="result-label" id="result-label">분석 결과</div>
+    <div id="result-box" class="md-content"></div>
   </div>
 
   <script>
     let collectedFiles = [];
+    let collectedScripts = [];
 
     // ── Drag & Drop ──────────────────────────────────────
 
@@ -356,114 +606,126 @@
     });
 
     dropZone.addEventListener('dragleave', e => {
-      if (!dropZone.contains(e.relatedTarget)) {
-        dropZone.classList.remove('drag-over');
-      }
+      if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over');
     });
 
     dropZone.addEventListener('drop', async e => {
       e.preventDefault();
       dropZone.classList.remove('drag-over');
 
-      const items = Array.from(e.dataTransfer.items);
-      const entries = items
+      const entries = Array.from(e.dataTransfer.items)
         .filter(i => i.kind === 'file')
         .map(i => i.webkitGetAsEntry ? i.webkitGetAsEntry() : null)
         .filter(Boolean);
 
       setStatus('파일 탐색 중...', '');
-      const files = [];
+      const csvFiles = [], csFiles = [];
       for (const entry of entries) {
-        const found = await collectCSVs(entry);
-        files.push(...found);
+        const { csvs, css } = await collectFiles(entry);
+        csvFiles.push(...csvs);
+        csFiles.push(...css);
       }
 
-      if (files.length === 0) {
-        setStatus('CSV 파일을 찾을 수 없습니다.', 'error');
+      if (csvFiles.length === 0 && csFiles.length === 0) {
+        setStatus('CSV 또는 .cs 파일을 찾을 수 없습니다.', 'error');
         return;
       }
 
-      collectedFiles = files;
-      renderFileList(files);
-      setStatus(`${files.length}개 CSV 파일 준비 완료`, 'ok');
+      collectedFiles = csvFiles;
+      collectedScripts = csFiles;
+      renderFileList(csvFiles, csFiles);
+      setStatus(`CSV ${csvFiles.length}개 + C# ${csFiles.length}개 준비 완료`, 'ok');
     });
 
-    // ── 재귀 CSV 수집 ────────────────────────────────────
+    // ── 재귀 파일 수집 (CSV + .cs) ──────────────────────
 
-    async function collectCSVs(entry) {
-      if (!entry) return [];
+    async function collectFiles(entry) {
+      if (!entry) return { csvs: [], css: [] };
 
       if (entry.isFile) {
-        if (entry.name.toLowerCase().endsWith('.csv')) {
-          const file = await new Promise((res, rej) => entry.file(res, rej));
-          // 경로 정보를 파일명에 보존 (선택적)
-          Object.defineProperty(file, 'relativePath', { value: entry.fullPath });
-          return [file];
-        }
-        return [];
+        const file = await new Promise((res, rej) => entry.file(res, rej));
+        Object.defineProperty(file, 'relativePath', { value: entry.fullPath });
+        const name = entry.name.toLowerCase();
+        if (name.endsWith('.csv')) return { csvs: [file], css: [] };
+        if (name.endsWith('.cs'))  return { csvs: [], css: [file] };
+        return { csvs: [], css: [] };
       }
 
       if (entry.isDirectory) {
-        const all = [];
+        const csvs = [], css = [];
         const reader = entry.createReader();
-        // readEntries는 한 번에 최대 100개만 반환하므로 루프 필요
         let batch;
         do {
           batch = await new Promise((res, rej) => reader.readEntries(res, rej));
           for (const child of batch) {
-            all.push(...await collectCSVs(child));
+            const r = await collectFiles(child);
+            csvs.push(...r.csvs);
+            css.push(...r.css);
           }
         } while (batch.length > 0);
-        return all;
+        return { csvs, css };
       }
 
-      return [];
+      return { csvs: [], css: [] };
     }
 
     // ── 파일 목록 렌더링 ──────────────────────────────────
 
-    function renderFileList(files) {
+    function renderFileList(csvFiles, csFiles) {
       const wrap = document.getElementById('file-list-wrap');
       const list = document.getElementById('file-list');
       const count = document.getElementById('file-count');
 
-      count.textContent = `${files.length}개 CSV 파일 감지됨`;
+      count.textContent = `CSV ${csvFiles.length}개 + C# ${csFiles.length}개 파일 감지됨`;
       list.innerHTML = '';
-      files.forEach(f => {
+
+      csvFiles.forEach(f => {
         const li = document.createElement('li');
+        li.className = 'csv-file';
+        li.textContent = f.relativePath || f.name;
+        list.appendChild(li);
+      });
+      csFiles.forEach(f => {
+        const li = document.createElement('li');
+        li.className = 'cs-file';
         li.textContent = f.relativePath || f.name;
         list.appendChild(li);
       });
 
       wrap.style.display = 'block';
-      document.getElementById('analyze-btn').disabled = false;
+      document.getElementById('analyze-btn').disabled = csvFiles.length === 0;
+      document.getElementById('pipeline-btn').disabled = csvFiles.length === 0;
     }
 
     function clearFiles() {
       collectedFiles = [];
+      collectedScripts = [];
       document.getElementById('file-list-wrap').style.display = 'none';
       document.getElementById('analyze-btn').disabled = true;
+      document.getElementById('pipeline-btn').disabled = true;
       document.getElementById('result-wrap').style.display = 'none';
+      document.getElementById('pipeline-wrap').style.display = 'none';
+      document.getElementById('agent-steps-wrap').style.display = 'none';
       setStatus('');
     }
 
-    // ── 분석 실행 (폴링 방식) ──────────────────────────────
+    // ── 기본 분석 (폴링 방식) ──────────────────────────────
 
     async function startAnalysis() {
       if (collectedFiles.length === 0) return;
 
-      const btn = document.getElementById('analyze-btn');
-      btn.disabled = true;
-      btn.textContent = '분석 중...';
+      setBtnsDisabled(true);
 
       const resultWrap = document.getElementById('result-wrap');
       const resultBox = document.getElementById('result-box');
-      resultWrap.style.display = 'block';
+      document.getElementById('result-label').textContent = '분석 결과';
+      document.getElementById('pipeline-wrap').style.display = 'none';
+      document.getElementById('agent-steps-wrap').style.display = 'none';
+      resultWrap.style.display = 'flex';
       resultBox.innerHTML = '<div style="color:var(--text-dim);padding:20px 0"><span class="cursor"></span></div>';
 
       const formData = new FormData();
       collectedFiles.forEach(f => formData.append('files[]', f, f.name));
-
       const context = document.getElementById('context-input').value.trim();
       if (context) formData.append('context', context);
       formData.append('session_id', 'session_' + Date.now());
@@ -471,68 +733,180 @@
       setStatus('파일 업로드 중...', '');
 
       try {
-        // 1단계: 파일 업로드 및 분석 작업 시작
-        const res = await fetch('/api/analyze/stream', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const err = await res.text();
-          throw new Error(`서버 오류 ${res.status}: ${err}`);
-        }
-
+        const res = await fetch('/api/analyze/stream', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error(`서버 오류 ${res.status}`);
         const { job_id } = await res.json();
-        if (!job_id) throw new Error('job_id를 받지 못했습니다.');
 
-        setStatus('Claude AI 분석 중... (완료까지 수십 초 소요될 수 있습니다)', '');
-
-        // 2단계: 폴링으로 결과 대기
-        let dotCount = 0;
-        const result = await new Promise((resolve, reject) => {
-          const interval = setInterval(async () => {
-            try {
-              const poll = await fetch(`/api/status/${job_id}`);
-              if (!poll.ok) {
-                clearInterval(interval);
-                reject(new Error(`폴링 오류 ${poll.status}`));
-                return;
-              }
-              const data = await poll.json();
-
-              if (data.status === 'done') {
-                clearInterval(interval);
-                resolve(data.result);
-              } else if (data.status === 'error') {
-                clearInterval(interval);
-                reject(new Error(data.error || '분석 중 오류 발생'));
-              } else {
-                // 로딩 애니메이션
-                dotCount = (dotCount + 1) % 4;
-                const dots = '.'.repeat(dotCount + 1);
-                setStatus(`Claude AI 분석 중${dots}`, '');
-              }
-            } catch (e) {
-              clearInterval(interval);
-              reject(e);
-            }
-          }, 2000);
+        setStatus('Claude AI 분석 중...', '');
+        const result = await pollUntilDone(job_id, data => {
+          setStatus(`Claude AI 분석 중${'...'.slice(0, (Date.now() / 500 | 0) % 4 + 1)}`, '');
         });
 
-        // 3단계: 마크다운 렌더링 후 뱃지 치환
-        resultBox.innerHTML = renderMarkdown(result);
+        resultBox.innerHTML = renderMarkdown(result.result);
         setStatus('분석 완료', 'ok');
-
       } catch (err) {
         resultBox.innerHTML = `<span style="color:var(--critical)">오류: ${escapeHtml(err.message)}</span>`;
         setStatus('분석 실패', 'error');
       } finally {
-        btn.disabled = false;
-        btn.textContent = '분석 시작';
+        setBtnsDisabled(false);
+        document.getElementById('analyze-btn').textContent = '기본 분석';
       }
     }
 
+    // ── 멀티 에이전트 파이프라인 ───────────────────────────
+
+    async function startPipeline() {
+      if (collectedFiles.length === 0) return;
+
+      setBtnsDisabled(true);
+
+      // 초기화
+      resetAgentCards();
+      document.getElementById('pipeline-wrap').style.display = 'flex';
+      document.getElementById('agent-steps-wrap').style.display = 'none';
+      document.getElementById('result-wrap').style.display = 'none';
+
+      const formData = new FormData();
+      collectedFiles.forEach(f => formData.append('files[]', f, f.name));
+      collectedScripts.forEach(f => formData.append('scripts[]', f, f.name));
+      const context = document.getElementById('context-input').value.trim();
+      if (context) formData.append('context', context);
+      formData.append('session_id', 'session_' + Date.now());
+
+      setStatus('파이프라인 시작 중...', '');
+
+      try {
+        const res = await fetch('/api/analyze/pipeline', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error(`서버 오류 ${res.status}`);
+        const { job_id } = await res.json();
+
+        setStatus('멀티 에이전트 파이프라인 실행 중...', '');
+
+        // 폴링 + 에이전트 상태 업데이트
+        const finalData = await pollUntilDone(job_id, data => {
+          if (data.agent_status) {
+            updateAgentCards(data.agent_status);
+          }
+        });
+
+        // 최종 에이전트 카드 상태 갱신
+        if (finalData.agent_status) updateAgentCards(finalData.agent_status);
+
+        // 개별 결과 아코디언 채우기
+        if (finalData.steps) {
+          showAgentSteps(finalData.steps);
+        }
+
+        // 최종 보고서 표시
+        const resultWrap = document.getElementById('result-wrap');
+        const resultBox = document.getElementById('result-box');
+        document.getElementById('result-label').textContent = '최종 밸런스 보고서 (Agent 4)';
+        resultWrap.style.display = 'flex';
+        resultBox.innerHTML = renderMarkdown(finalData.result || '(결과 없음)');
+
+        setStatus('파이프라인 완료', 'ok');
+      } catch (err) {
+        setStatus('파이프라인 실패: ' + err.message, 'error');
+      } finally {
+        setBtnsDisabled(false);
+      }
+    }
+
+    // ── 폴링 헬퍼 ────────────────────────────────────────
+
+    async function pollUntilDone(jobId, onTick) {
+      return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+          try {
+            const poll = await fetch(`/api/status/${jobId}`);
+            if (!poll.ok) {
+              clearInterval(interval);
+              reject(new Error(`폴링 오류 ${poll.status}`));
+              return;
+            }
+            const data = await poll.json();
+            if (data.status === 'done') {
+              clearInterval(interval);
+              resolve(data);
+            } else if (data.status === 'error') {
+              clearInterval(interval);
+              reject(new Error(data.error || '작업 오류'));
+            } else {
+              if (onTick) onTick(data);
+            }
+          } catch (e) {
+            clearInterval(interval);
+            reject(e);
+          }
+        }, 2000);
+      });
+    }
+
+    // ── 에이전트 카드 상태 ─────────────────────────────────
+
+    const AGENT_LABELS = {
+      pending: '대기 중',
+      running: '분석 중...',
+      done: '완료',
+      error: '오류 발생',
+    };
+
+    function resetAgentCards() {
+      ['agent1','agent2','agent3','agent4'].forEach(key => {
+        setAgentCard(key, 'pending');
+      });
+    }
+
+    function updateAgentCards(agentStatus) {
+      Object.entries(agentStatus).forEach(([key, status]) => {
+        setAgentCard(key, status);
+      });
+    }
+
+    function setAgentCard(key, status) {
+      const card = document.getElementById('card-' + key);
+      const prog = document.getElementById('prog-' + key);
+      if (!card) return;
+      card.className = 'agent-card ' + status;
+      prog.textContent = AGENT_LABELS[status] || status;
+    }
+
+    // ── 에이전트 결과 아코디언 ────────────────────────────
+
+    function showAgentSteps(steps) {
+      const wrap = document.getElementById('agent-steps-wrap');
+      wrap.style.display = 'flex';
+
+      ['agent1','agent2','agent3'].forEach(key => {
+        const content = steps[key];
+        if (content) {
+          document.getElementById('step-content-' + key).innerHTML = renderMarkdown(content);
+        }
+      });
+    }
+
+    function toggleStep(id) {
+      const accordion = document.getElementById(id);
+      const header = accordion.querySelector('.step-accordion-header');
+      const body = accordion.querySelector('.step-accordion-body');
+      const isOpen = body.classList.contains('open');
+      body.classList.toggle('open', !isOpen);
+      header.classList.toggle('open', !isOpen);
+    }
+
     // ── 유틸 ─────────────────────────────────────────────
+
+    function setBtnsDisabled(disabled) {
+      document.getElementById('analyze-btn').disabled = disabled;
+      document.getElementById('pipeline-btn').disabled = disabled;
+      if (disabled) {
+        document.getElementById('analyze-btn').textContent = '분석 중...';
+        document.getElementById('pipeline-btn').textContent = '🤖 실행 중...';
+      } else {
+        document.getElementById('analyze-btn').textContent = '기본 분석';
+        document.getElementById('pipeline-btn').textContent = '🤖 멀티 에이전트 분석';
+      }
+    }
 
     function setStatus(msg, type = '') {
       const el = document.getElementById('status');
@@ -551,18 +925,13 @@
     // ── 마크다운 렌더링 + 심각도 뱃지 ────────────────────
 
     function renderMarkdown(text) {
-      // marked 설정: 테이블, GFM 활성화
       marked.setOptions({ gfm: true, breaks: true });
       let html = marked.parse(text);
-
-      // CRITICAL / WARNING / OK 키워드를 색상 뱃지로 치환
-      // (테이블 셀과 리스트 내부에 있는 텍스트 대상)
       html = html
         .replace(/\bCRITICAL\b/g, '<span class="badge badge-critical">CRITICAL</span>')
-        .replace(/\bWARNING\b/g,  '<span class="badge badge-warning">WARNING</span>')
+        .replace(/\bWARNING\b/g,   '<span class="badge badge-warning">WARNING</span>')
         .replace(/\b(OK|PASS|양호|정상)\b/g, '<span class="badge badge-ok">$1</span>')
-        .replace(/\bINFO\b/g,    '<span class="badge badge-info">INFO</span>');
-
+        .replace(/\bINFO\b/g,      '<span class="badge badge-info">INFO</span>');
       return html;
     }
   </script>
