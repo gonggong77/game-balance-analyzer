@@ -1,0 +1,7 @@
+equip_id,equip_name,passive_effect,passive_effect_stat,equip_effect,equip_effect_stat,max_level,passive_value_per_level,equip_value_per_level,notes
+1,무기,추가공격력,add_atk,추가공격력,add_atk,200,0.002,0.003,보유+장착 모두 추가공격력
+2,갑옷,추가체력,add_hp,추가체력,add_hp,200,0.002,0.003,보유+장착 모두 추가체력
+3,투구,추가체력,add_hp,체력회복량,hp_regen,200,0.002,1.0,보유=추가체력 / 장착=체력회복량
+4,벨트,추가공격력,add_atk,치명타확률,crit_rate,200,0.002,0.0005,보유=추가공격력 / 장착=치명타확률
+5,장갑,추가공격력,add_atk,스킬데미지증가,skill_dmg,200,0.002,0.001,보유=추가공격력 / 장착=스킬데미지
+6,신발,추가체력,add_hp,치명타데미지,crit_dmg,200,0.002,0.001,보유=추가체력 / 장착=치명타데미지

@@ -1,0 +1,5 @@
+pet_id,pet_name,passive_effect,passive_stat_key,passive_value_per_level,equip_effect,equip_stat_key,equip_value_per_level,max_level,notes
+1,전사 펫,기본공격력,base_atk,30,추가공격력,add_atk,0.001,50,동시 장착 가능
+2,마법사 펫,최대마나,max_mp,50,마나회복량,mp_regen,0.5,50,
+3,수호 펫,기본체력,base_hp,300,추가체력,add_hp,0.001,50,
+4,행운 펫,치명타데미지,crit_dmg,0.005,치명타확률,crit_rate,0.001,50,

@@ -1,0 +1,256 @@
+{
+  "game_name": "단테키우기",
+  "version": "1.0",
+  "description": "게임 밸런스 검증 스키마 — CSV 컬럼과 스탯 기여도를 정의합니다",
+  "growth_sources": {
+    "레벨": {
+      "max": 1000,
+      "description": "캐릭터 레벨 (레벨당 기본 수치 증가)"
+    },
+    "골드": {
+      "max": 3000,
+      "description": "골드 투자 최대치"
+    },
+    "유물": {
+      "max": 50,
+      "description": "유물 강화 최대 레벨"
+    },
+    "펫": {
+      "max": 50,
+      "description": "펫 강화 최대 레벨"
+    },
+    "장비": {
+      "max": 200,
+      "description": "장비 강화 최대 레벨"
+    },
+    "스킬": {
+      "max": 100,
+      "description": "스킬 강화 최대 레벨"
+    },
+    "장신구": {
+      "max": 1000,
+      "description": "장신구 강화 최대 레벨"
+    }
+  },
+  "stats": {
+    "기본공격력": {
+      "description": "캐릭터 기본 공격력 (절대값)",
+      "formula": "total = base * (1 + bonus_atk_pct)",
+      "sources": {
+        "레벨": {
+          "formula": "level * 10",
+          "type": "absolute"
+        },
+        "유물": {
+          "formula": "relic * 50",
+          "type": "absolute"
+        },
+        "펫": {
+          "formula": "pet * 30",
+          "type": "absolute"
+        }
+      }
+    },
+    "추가공격력": {
+      "description": "추가 공격력 배율 (% 합산)",
+      "sources": {
+        "골드": {
+          "formula": "gold * 0.001",
+          "type": "percent"
+        },
+        "펫": {
+          "formula": "pet * 0.001",
+          "type": "percent"
+        },
+        "무기(보유)": {
+          "formula": "equip * 0.002",
+          "type": "percent"
+        },
+        "무기(장착)": {
+          "formula": "equip * 0.003",
+          "type": "percent"
+        },
+        "벨트(보유)": {
+          "formula": "equip * 0.002",
+          "type": "percent"
+        },
+        "장갑(보유)": {
+          "formula": "equip * 0.002",
+          "type": "percent"
+        },
+        "장신구": {
+          "formula": "acc_bonus_atk(acc_level) * 8",
+          "type": "percent",
+          "lookup": "accessory_level_range"
+        }
+      }
+    },
+    "치명타확률": {
+      "description": "치명타 발생 확률 (100% 초과분 → 치명타데미지 보너스)",
+      "sources": {
+        "골드": {
+          "formula": "gold * 0.0005",
+          "type": "percent"
+        },
+        "유물": {
+          "formula": "relic * 0.002",
+          "type": "percent"
+        },
+        "펫": {
+          "formula": "pet * 0.001",
+          "type": "percent"
+        },
+        "벨트(장착)": {
+          "formula": "equip * 0.0005",
+          "type": "percent"
+        }
+      }
+    },
+    "치명타데미지": {
+      "description": "치명타 발생 시 추가 데미지 배율",
+      "sources": {
+        "골드": {
+          "formula": "gold * 0.001",
+          "type": "percent"
+        },
+        "유물": {
+          "formula": "relic * 0.005",
+          "type": "percent"
+        },
+        "펫": {
+          "formula": "pet * 0.005",
+          "type": "percent"
+        },
+        "신발(장착)": {
+          "formula": "equip * 0.001",
+          "type": "percent"
+        }
+      }
+    },
+    "스킬데미지": {
+      "description": "스킬 데미지 보정 배율",
+      "sources": {
+        "유물": {
+          "formula": "relic * 0.005",
+          "type": "percent"
+        },
+        "장갑(장착)": {
+          "formula": "equip * 0.001",
+          "type": "percent"
+        },
+        "스킬강화": {
+          "formula": "skill * 0.002",
+          "type": "percent"
+        },
+        "장신구": {
+          "formula": "acc_skill_bonus(acc_level) * 8",
+          "type": "percent",
+          "lookup": "accessory_level_range"
+        }
+      }
+    },
+    "체력회복량": {
+      "description": "초당 체력 회복량",
+      "sources": {
+        "골드": {
+          "formula": "gold * 0.5",
+          "type": "absolute"
+        },
+        "투구(장착)": {
+          "formula": "equip * 1.0",
+          "type": "absolute"
+        }
+      }
+    },
+    "마나회복량": {
+      "description": "초당 마나 회복량",
+      "sources": {
+        "유물": {
+          "formula": "relic * 1.0",
+          "type": "absolute"
+        },
+        "펫": {
+          "formula": "pet * 0.5",
+          "type": "absolute"
+        }
+      }
+    }
+  },
+  "csv_files": {
+    "skills": {
+      "description": "스킬 기본 수치 (20행, tier 1~5)"
+    },
+    "skillLevels": {
+      "description": "스킬 강화 수치"
+    },
+    "stats": {
+      "description": "골드 성장 수치"
+    },
+    "levels": {
+      "description": "레벨 성장 수치"
+    },
+    "accessory": {
+      "description": "장신구 8부위 수치"
+    },
+    "accessory_level_range": {
+      "description": "레벨 구간별 랜덤 범위"
+    },
+    "equipment": {
+      "description": "장비 6부위 수치"
+    },
+    "relic": {
+      "description": "유물 12종 수치"
+    },
+    "pet": {
+      "description": "펫 4종 수치"
+    }
+  },
+  "validation_rules": {
+    "dominance_threshold": 10.0,
+    "critical_threshold": 20.0,
+    "outlier_delta_threshold": 50.0,
+    "check_points": [
+      25,
+      50,
+      75,
+      100
+    ],
+    "rules": [
+      {
+        "id": 3,
+        "desc": "모든 성장 요소는 동일 진행률(%)로 상승해야 함"
+      },
+      {
+        "id": 4,
+        "desc": "동일 진행률에서 특정 요소가 과도하게 튀면 안 됨"
+      },
+      {
+        "id": 5,
+        "desc": "이 검수 자동화가 최종 목표"
+      },
+      {
+        "id": 6,
+        "desc": "CSV + 규칙만으로 어떤 게임도 검증 가능 (범용)"
+      }
+    ]
+  },
+  "skill_damage_formula": {
+    "description": "스킬 총 데미지 계산식",
+    "formula": "total = skill_coef * char_atk * skill_dmg_bonus * element_bonus",
+    "skill_types": {
+      "1": {
+        "name": "단타",
+        "hit_formula": "damage * 1"
+      },
+      "2": {
+        "name": "다단",
+        "hit_formula": "damage * hit_count"
+      },
+      "3": {
+        "name": "지속",
+        "hit_formula": "damage * floor(active_duration / hit_term)"
+      }
+    },
+    "dps_formula": "total_damage / cooldown"
+  }
+}
