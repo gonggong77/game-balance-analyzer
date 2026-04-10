@@ -20,7 +20,8 @@ import requests as _req
 from balance_checker import run_analysis, report_to_dict
 
 MODEL = "claude-sonnet-4-6"
-MAX_TOKENS = 4096
+MAX_TOKENS = 8192        # Agent 1·2·3 기본 출력 한도
+MAX_TOKENS_FINAL = 16000  # Agent 4 최종 보고서 — extended output beta 활용
 
 
 # ── 공통 헬퍼 ────────────────────────────────────────────────
@@ -259,16 +260,31 @@ def run_senior_designer(
         "5. **단기 / 장기 로드맵** — 우선순위 기반 실행 계획"
     )
 
-    resp = _client().messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        system=(
-            "당신은 10년 경력의 시니어 게임 밸런스 기획자입니다. "
-            "여러 에이전트의 분석을 통합하여 데이터 기반의 명확하고 "
-            "실행 가능한 밸런스 보고서를 작성합니다."
-        ),
-        messages=[{"role": "user", "content": "\n\n---\n\n".join(sections)}],
-    )
+    # extended output beta로 최대 16 K 토큰까지 출력 허용
+    # (미지원 모델에서는 일반 max_tokens=8192로 자동 폴백)
+    try:
+        resp = _client().messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS_FINAL,
+            betas=["output-128k-2025-02-19"],
+            system=(
+                "당신은 10년 경력의 시니어 게임 밸런스 기획자입니다. "
+                "여러 에이전트의 분석을 통합하여 데이터 기반의 명확하고 "
+                "실행 가능한 밸런스 보고서를 작성합니다."
+            ),
+            messages=[{"role": "user", "content": "\n\n---\n\n".join(sections)}],
+        )
+    except Exception:
+        resp = _client().messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=(
+                "당신은 10년 경력의 시니어 게임 밸런스 기획자입니다. "
+                "여러 에이전트의 분석을 통합하여 데이터 기반의 명확하고 "
+                "실행 가능한 밸런스 보고서를 작성합니다."
+            ),
+            messages=[{"role": "user", "content": "\n\n---\n\n".join(sections)}],
+        )
     return resp.content[0].text
 
 

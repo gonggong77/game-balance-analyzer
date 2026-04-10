@@ -13,7 +13,7 @@ from balance_checker import run_analysis, report_to_dict
 
 
 MODEL = "claude-sonnet-4-6"
-MAX_TOKENS = 4096
+MAX_TOKENS = 8192
 
 
 def _build_prompt(base_dir: str, user_context: str) -> str:
