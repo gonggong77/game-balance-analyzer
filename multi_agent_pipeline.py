@@ -260,30 +260,32 @@ def run_senior_designer(
         "5. **단기 / 장기 로드맵** — 우선순위 기반 실행 계획"
     )
 
-    # extended output beta로 최대 16 K 토큰까지 출력 허용
-    # (미지원 모델에서는 일반 max_tokens=8192로 자동 폴백)
+    system_prompt = (
+        "당신은 10년 경력의 시니어 게임 밸런스 기획자입니다. "
+        "여러 에이전트의 분석을 통합하여 데이터 기반의 명확하고 "
+        "실행 가능한 밸런스 보고서를 작성합니다."
+    )
+    content = "\n\n---\n\n".join(sections)
+
+    # client.beta.messages.create()로 extended output beta 올바르게 호출
+    # — betas=[] 를 messages.create()에 넘기면 무시됨(SDK 동작)
     try:
-        resp = _client().messages.create(
+        resp = _client().beta.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS_FINAL,
             betas=["output-128k-2025-02-19"],
-            system=(
-                "당신은 10년 경력의 시니어 게임 밸런스 기획자입니다. "
-                "여러 에이전트의 분석을 통합하여 데이터 기반의 명확하고 "
-                "실행 가능한 밸런스 보고서를 작성합니다."
-            ),
-            messages=[{"role": "user", "content": "\n\n---\n\n".join(sections)}],
+            system=system_prompt,
+            messages=[{"role": "user", "content": content}],
         )
-    except Exception:
+    except Exception as beta_err:
+        # beta 미지원 환경 폴백 — 오류는 기록
+        import sys
+        print(f"[Agent4] extended-output beta 실패, 폴백: {beta_err}", file=sys.stderr)
         resp = _client().messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
-            system=(
-                "당신은 10년 경력의 시니어 게임 밸런스 기획자입니다. "
-                "여러 에이전트의 분석을 통합하여 데이터 기반의 명확하고 "
-                "실행 가능한 밸런스 보고서를 작성합니다."
-            ),
-            messages=[{"role": "user", "content": "\n\n---\n\n".join(sections)}],
+            system=system_prompt,
+            messages=[{"role": "user", "content": content}],
         )
     return resp.content[0].text
 
