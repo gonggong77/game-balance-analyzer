@@ -80,6 +80,9 @@ def analyze_with_claude_stream(base_dir: str, user_context: str = ""):
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
     prompt = _build_prompt(base_dir, user_context)
 
+    # 분석 시작 전 keepalive — Claude API 호출 전 프록시 타임아웃 방지
+    yield ": keepalive\n\n"
+
     try:
         with client.messages.stream(
             model=MODEL,
