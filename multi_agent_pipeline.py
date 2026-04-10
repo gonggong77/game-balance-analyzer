@@ -123,45 +123,202 @@ def run_csv_analyst(base_dir: str, user_context: str = "") -> str:
     return resp.content[0].text
 
 
-# ── Agent 2: 스크립트 분석가 ─────────────────────────────────
+# ── Agent 2: 스크립트 분석가 — 밸런스 관련 코드만 추출 ──────
+
+# 밸런스에 직접 영향을 주는 키워드 (대소문자 무시)
+_BALANCE_KEYWORDS = re.compile(
+    r"\b("
+    r"damage|dmg|attack|atk|defense|def(?:ense)?|"
+    r"hp|health|maxhp|mp|mana|maxmp|energy|stamina|"
+    r"stat|stats|basestat|"
+    r"level|lv|lvl|exp|xp|experience|"
+    r"cooldown|cd|cooltime|casttime|"
+    r"probability|chance|rate|critical|crit|"
+    r"scale|scaling|growth|curve|formula|"
+    r"power|force|strength|str|agility|agi|intelligence|int|"
+    r"speed|movespeed|attackspeed|"
+    r"resistance|penetration|reduction|"
+    r"multiplier|modifier|bonus|buff|debuff|"
+    r"dot|aoe|splash|range|radius|"
+    r"regen|regeneration|heal|recovery|"
+    r"cost|manacost|cooldownreduction|cdr"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# 무시할 네임스페이스·클래스 패턴 (UI·렌더링·오디오·애니메이션)
+_IGNORE_CLASS = re.compile(
+    r"\b("
+    r"UI|Canvas|Text|Button|Image|Slider|Panel|HUD|Icon|"
+    r"Animator|Animation|Tween|Fade|Transition|"
+    r"Renderer|Shader|Material|Sprite|Particle|VFX|"
+    r"Audio|Sound|Music|SFX|"
+    r"Camera|Screen|Resolution|Viewport|"
+    r"Tooltip|Popup|Window|Menu|Tab|"
+    r"Effect|Visual|Gfx|Fx"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_balance_snippets(source: str) -> list[str]:
+    """
+    C# 소스에서 밸런스 관련 멤버(필드·프로퍼티·메서드)만 추출한다.
+
+    규칙:
+    - 클래스 선언줄에 _IGNORE_CLASS 키워드가 있으면 클래스 전체 스킵
+    - 중괄호 블록({...}) 단위로 분리 후 _BALANCE_KEYWORDS 포함 블록만 수집
+    - 단순 필드/프로퍼티 선언(한 줄)도 _BALANCE_KEYWORDS 포함 시 수집
+    - 주석(// /* */)은 유지 (공식 설명이 담겨 있는 경우가 많음)
+    """
+    snippets: list[str] = []
+    lines = source.splitlines()
+    n = len(lines)
+    i = 0
+
+    # 현재 클래스가 무시 대상인지 추적
+    skip_depth = 0   # 무시 클래스 중괄호 깊이
+    brace_depth = 0  # 전체 중괄호 깊이
+
+    while i < n:
+        line = lines[i]
+        stripped = line.strip()
+
+        # 클래스·구조체 선언 감지
+        if re.search(r"\bclass\b|\bstruct\b", stripped):
+            if _IGNORE_CLASS.search(stripped):
+                # 이 클래스는 통째로 스킵 — 여는 { 찾아서 skip_depth 설정
+                skip_start = brace_depth
+                # 선언줄에 { 가 있을 수도 있음
+                for ch in line:
+                    if ch == "{":
+                        brace_depth += 1
+                    elif ch == "}":
+                        brace_depth -= 1
+                skip_depth = brace_depth
+                i += 1
+                continue
+
+        # skip_depth 이하로 내려오면 무시 클래스 탈출
+        if skip_depth > 0:
+            for ch in line:
+                if ch == "{":
+                    brace_depth += 1
+                elif ch == "}":
+                    brace_depth -= 1
+            if brace_depth < skip_depth:
+                skip_depth = 0
+            i += 1
+            continue
+
+        # 단순 필드/프로퍼티 (중괄호 없는 한 줄)
+        if "{" not in stripped and "}" not in stripped:
+            if _BALANCE_KEYWORDS.search(stripped):
+                snippets.append(f"    {stripped}")
+            for ch in line:
+                if ch == "{":
+                    brace_depth += 1
+                elif ch == "}":
+                    brace_depth -= 1
+            i += 1
+            continue
+
+        # 블록 시작 감지 — 메서드·프로퍼티·람다 등
+        if "{" in stripped:
+            block_start = i
+            block_lines = [line]
+            depth = 0
+            for ch in line:
+                if ch == "{":
+                    depth += 1
+                    brace_depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    brace_depth -= 1
+
+            j = i + 1
+            while j < n and depth > 0:
+                block_lines.append(lines[j])
+                for ch in lines[j]:
+                    if ch == "{":
+                        depth += 1
+                        brace_depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        brace_depth -= 1
+                j += 1
+
+            block_text = "\n".join(block_lines)
+            if _BALANCE_KEYWORDS.search(block_text):
+                snippets.append(block_text)
+
+            i = j
+            continue
+
+        i += 1
+
+    return snippets
+
 
 def run_script_analyst(base_dir: str, user_context: str = "") -> str:
-    """업로드된 C# 스크립트에서 밸런스 관련 로직을 분석한다."""
-    scripts = []
-    for p in Path(base_dir).rglob("*.cs"):
-        try:
-            size_kb = p.stat().st_size // 1024
-            if size_kb > 60:
-                scripts.append(f"## {p.name}\n> 파일 크기 초과 ({size_kb}KB — 60KB 제한)\n")
-            else:
-                content = p.read_text(encoding="utf-8", errors="ignore")
-                scripts.append(f"## {p.name}\n```csharp\n{content}\n```")
-        except Exception as e:
-            scripts.append(f"## {p.name}\n> 읽기 오류: {e}\n")
+    """C# 스크립트에서 밸런스 관련 코드만 추출해 분석한다."""
+    file_sections: list[str] = []
+    skipped: list[str] = []
 
-    if not scripts:
+    for p in sorted(Path(base_dir).rglob("*.cs"))[:20]:  # 최대 20개 파일
+        try:
+            source = p.read_text(encoding="utf-8", errors="ignore")
+        except Exception as e:
+            skipped.append(f"{p.name}: 읽기 오류 — {e}")
+            continue
+
+        snippets = _extract_balance_snippets(source)
+        if not snippets:
+            skipped.append(f"{p.name}: 밸런스 관련 코드 없음 (스킵)")
+            continue
+
+        joined = "\n\n".join(snippets)
+        # 파일당 최대 6000자 — 그 이상은 앞부분만 사용
+        if len(joined) > 6000:
+            joined = joined[:6000] + "\n... (이하 생략)"
+
+        file_sections.append(f"### {p.name}\n```csharp\n{joined}\n```")
+
+    if not file_sections:
+        note = "\n".join(skipped) if skipped else "(없음)"
         return (
-            "**C# 스크립트 없음**\n\n"
-            "업로드된 파일 중 `.cs` 파일이 발견되지 않았습니다. "
-            "스크립트를 함께 업로드하면 데미지 계산식·스케일링 공식 등 "
-            "코드 레벨 밸런스 분석이 추가됩니다."
+            "**밸런스 관련 C# 코드 없음**\n\n"
+            "업로드된 `.cs` 파일에서 스탯·데미지·레벨업·쿨타임·확률 등 "
+            "밸런스에 직접 영향을 주는 코드를 찾지 못했습니다.\n\n"
+            f"**검사한 파일 목록:**\n{note}"
         )
 
-    block = "\n\n---\n\n".join(scripts[:10])  # 최대 10개
+    block = "\n\n---\n\n".join(file_sections)
+    skipped_note = (
+        f"\n\n> **스킵된 파일 ({len(skipped)}개):** " + ", ".join(skipped)
+        if skipped else ""
+    )
+
     resp = _client().messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
         system=(
-            "당신은 게임 프로그래밍 및 밸런스 설계 전문가입니다. "
-            "C# 스크립트에서 데미지 계산식, 스탯 수식, 레벨 스케일링, "
-            "쿨다운·자원 시스템 등 밸런스 관련 로직을 분석합니다. "
-            "한국어 마크다운으로 작성하세요."
+            "당신은 게임 밸런스 전문 분석가입니다. "
+            "제공된 코드는 이미 밸런스 관련 부분만 추출된 것입니다. "
+            "각 수식·수치가 게임 밸런스에 미치는 영향을 분석하고, "
+            "Agent 4(시니어 밸런스 기획자)가 최종 보고서에 바로 인용할 수 있도록 "
+            "다음 형식으로 한국어 마크다운 작성:\n"
+            "1. **수식/수치 목록** — 발견된 모든 계산식을 수학 표기로 정리\n"
+            "2. **밸런스 영향 분석** — 각 수식이 게임플레이에 미치는 효과\n"
+            "3. **잠재적 문제점** — 수치 범위·엣지케이스·스케일링 이상 등\n"
+            "UI·렌더링·오디오 코드는 이미 제거되었으므로 언급 불필요."
         ),
         messages=[{
             "role": "user",
             "content": (
-                "다음 C# 스크립트를 분석하여 밸런스 관련 로직과 "
-                f"잠재적 문제점을 정리하세요:\n\n{block}"
+                "다음은 C# 스크립트에서 추출한 밸런스 관련 코드입니다. "
+                "각 수식·수치의 밸런스 영향을 분석해주세요:\n\n"
+                f"{block}{skipped_note}"
             ),
         }],
     )
