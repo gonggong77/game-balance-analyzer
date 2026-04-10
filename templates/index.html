@@ -343,7 +343,7 @@
       setStatus('');
     }
 
-    // ── 분석 실행 ─────────────────────────────────────────
+    // ── 분석 실행 (폴링 방식) ──────────────────────────────
 
     async function startAnalysis() {
       if (collectedFiles.length === 0) return;
@@ -364,9 +364,10 @@
       if (context) formData.append('context', context);
       formData.append('session_id', 'session_' + Date.now());
 
-      setStatus('Claude AI 분석 중...', '');
+      setStatus('파일 업로드 중...', '');
 
       try {
+        // 1단계: 파일 업로드 및 분석 작업 시작
         const res = await fetch('/api/analyze/stream', {
           method: 'POST',
           body: formData,
@@ -377,45 +378,45 @@
           throw new Error(`서버 오류 ${res.status}: ${err}`);
         }
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let text = '';
+        const { job_id } = await res.json();
+        if (!job_id) throw new Error('job_id를 받지 못했습니다.');
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        setStatus('Claude AI 분석 중... (완료까지 수십 초 소요될 수 있습니다)', '');
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop(); // 마지막 미완성 줄은 다음 청크로
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const raw = line.slice(6).trim();
-              if (raw === '[DONE]') continue;
-              try {
-                const json = JSON.parse(raw);
-                if (json.text) {
-                  text += json.text;
-                  resultBox.innerHTML = escapeHtml(text) + '<span class="cursor"></span>';
-                  resultBox.scrollTop = resultBox.scrollHeight;
-                } else if (json.error) {
-                  throw new Error(json.error);
-                }
-              } catch (e) {
-                // JSON 파싱 실패 → 텍스트 그대로
-                if (!raw.startsWith('{')) {
-                  text += raw;
-                  resultBox.innerHTML = escapeHtml(text) + '<span class="cursor"></span>';
-                }
+        // 2단계: 폴링으로 결과 대기
+        let dotCount = 0;
+        const result = await new Promise((resolve, reject) => {
+          const interval = setInterval(async () => {
+            try {
+              const poll = await fetch(`/api/status/${job_id}`);
+              if (!poll.ok) {
+                clearInterval(interval);
+                reject(new Error(`폴링 오류 ${poll.status}`));
+                return;
               }
-            }
-          }
-        }
+              const data = await poll.json();
 
-        // 커서 제거
-        resultBox.innerHTML = escapeHtml(text);
+              if (data.status === 'done') {
+                clearInterval(interval);
+                resolve(data.result);
+              } else if (data.status === 'error') {
+                clearInterval(interval);
+                reject(new Error(data.error || '분석 중 오류 발생'));
+              } else {
+                // 로딩 애니메이션
+                dotCount = (dotCount + 1) % 4;
+                const dots = '.'.repeat(dotCount + 1);
+                setStatus(`Claude AI 분석 중${dots}`, '');
+              }
+            } catch (e) {
+              clearInterval(interval);
+              reject(e);
+            }
+          }, 2000);
+        });
+
+        // 3단계: 결과 표시
+        resultBox.innerHTML = escapeHtml(result);
         setStatus('분석 완료', 'ok');
 
       } catch (err) {

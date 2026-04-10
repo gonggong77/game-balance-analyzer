@@ -6,6 +6,9 @@ import os
 import json
 import tempfile
 import shutil
+import threading
+import time
+import uuid
 from pathlib import Path
 from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory
 from dotenv import load_dotenv
@@ -13,13 +16,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from balance_checker import run_analysis, report_to_dict
-from claude_analyzer import analyze_with_claude_stream, analyze_with_claude_sync
+from claude_analyzer import analyze_with_claude_sync
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50MB
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
 
 # 대화 세션 (메모리 기반, 실서비스엔 Redis 권장)
 SESSIONS: dict[str, list] = {}
+
+# 비동기 분석 작업 저장소
+JOBS: dict[str, dict] = {}
+
+
+def _cleanup_jobs():
+    """1시간 이상 된 완료 작업 정리"""
+    cutoff = time.time() - 3600
+    stale = [jid for jid, job in list(JOBS.items()) if job.get("created_at", 0) < cutoff]
+    for jid in stale:
+        JOBS.pop(jid, None)
 
 
 # ──────────────────────────────────────────────
@@ -32,7 +46,7 @@ def index():
 
 
 # ──────────────────────────────────────────────
-# 1. CSV 업로드 + 즉시 분석 (스트리밍 SSE)
+# 1. CSV 업로드 → 비동기 분석 시작
 # ──────────────────────────────────────────────
 
 @app.route("/api/analyze/stream", methods=["POST"])
@@ -40,14 +54,14 @@ def analyze_stream():
     """
     multipart/form-data:
       - files[]: CSV 파일들
-      - schema: schema.json (optional, 없으면 기본 schema.json 사용)
+      - schema: schema.json (optional)
       - context: 사용자 추가 설명 (optional)
       - session_id: 대화 세션 ID
+    반환: {"job_id": "...", "session_id": "..."}
     """
     session_id = request.form.get("session_id", "default")
     user_context = request.form.get("context", "")
 
-    # 임시 디렉토리에 업로드 파일 저장
     tmp_dir = tempfile.mkdtemp(prefix="balance_")
     data_dir = os.path.join(tmp_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
@@ -55,13 +69,11 @@ def analyze_stream():
     uploaded_files = request.files.getlist("files[]")
     schema_file = request.files.get("schema")
 
-    # CSV 저장 (동명 파일 충돌 방지: 원본 파일명만 사용)
     for f in uploaded_files:
         if f.filename.lower().endswith(".csv"):
-            safe_name = Path(f.filename).name  # 경로 스트립, 파일명만 보존
+            safe_name = Path(f.filename).name
             f.save(os.path.join(data_dir, safe_name))
 
-    # schema.json 저장 (없으면 기본 스키마 복사)
     if schema_file:
         schema_file.save(os.path.join(tmp_dir, "schema.json"))
     else:
@@ -69,24 +81,38 @@ def analyze_stream():
         if default_schema.exists():
             shutil.copy(default_schema, os.path.join(tmp_dir, "schema.json"))
 
-    def generate():
+    job_id = str(uuid.uuid4())
+    JOBS[job_id] = {"status": "running", "result": "", "error": "", "created_at": time.time()}
+
+    def run():
         try:
-            for chunk in analyze_with_claude_stream(
-                base_dir=tmp_dir,
-                user_context=user_context,
-            ):
-                yield chunk
+            result = analyze_with_claude_sync(base_dir=tmp_dir, user_context=user_context)
+            SESSIONS[session_id] = result["conversation"]
+            JOBS[job_id]["result"] = result["ai_response"]
+            JOBS[job_id]["status"] = "done"
+        except Exception as e:
+            JOBS[job_id]["error"] = str(e)
+            JOBS[job_id]["status"] = "error"
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
+            _cleanup_jobs()
 
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        }
-    )
+    threading.Thread(target=run, daemon=True).start()
+
+    return jsonify({"job_id": job_id, "session_id": session_id})
+
+
+@app.route("/api/status/<job_id>")
+def job_status(job_id):
+    """분석 작업 상태 폴링"""
+    job = JOBS.get(job_id)
+    if not job:
+        return jsonify({"error": "작업을 찾을 수 없습니다."}), 404
+    return jsonify({
+        "status": job["status"],   # running | done | error
+        "result": job.get("result", ""),
+        "error": job.get("error", ""),
+    })
 
 
 # ──────────────────────────────────────────────
