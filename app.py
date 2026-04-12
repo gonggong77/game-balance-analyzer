@@ -22,6 +22,10 @@ from multi_agent_pipeline import run_pipeline
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
 
+# 업로드 파일 영구 보존 디렉토리 (피드백 재분석용)
+UPLOAD_BASE = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_BASE, exist_ok=True)
+
 # 대화 세션 (메모리 기반, 실서비스엔 Redis 권장)
 SESSIONS: dict[str, list] = {}
 
@@ -35,6 +39,20 @@ def _cleanup_jobs():
     stale = [jid for jid, job in list(JOBS.items()) if job.get("created_at", 0) < cutoff]
     for jid in stale:
         JOBS.pop(jid, None)
+
+
+def cleanup_old_uploads():
+    """24시간 이상 지난 업로드 디렉토리 정리"""
+    cutoff = time.time() - 86400
+    if not os.path.isdir(UPLOAD_BASE):
+        return
+    for d in os.listdir(UPLOAD_BASE):
+        path = os.path.join(UPLOAD_BASE, d)
+        if os.path.isdir(path) and os.path.getmtime(path) < cutoff:
+            shutil.rmtree(path, ignore_errors=True)
+
+
+cleanup_old_uploads()
 
 
 # ──────────────────────────────────────────────
@@ -115,6 +133,7 @@ def job_status(job_id):
         "error": job.get("error", ""),
         "agent_status": job.get("agent_status", {}),
         "steps": job.get("steps", {}),
+        "versions": job.get("versions", []),
     })
 
 
@@ -137,8 +156,9 @@ def analyze_pipeline():
     session_id = request.form.get("session_id", "default")
     user_context = request.form.get("context", "")
 
-    tmp_dir = tempfile.mkdtemp(prefix="pipeline_")
-    data_dir = os.path.join(tmp_dir, "data")
+    job_id = str(uuid.uuid4())
+    upload_dir = os.path.join(UPLOAD_BASE, job_id)
+    data_dir = os.path.join(upload_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
 
     # CSV 파일 저장
@@ -146,21 +166,20 @@ def analyze_pipeline():
         if f.filename.lower().endswith(".csv"):
             f.save(os.path.join(data_dir, Path(f.filename).name))
 
-    # C# 스크립트 저장 (루트 및 data 디렉토리 모두)
+    # C# 스크립트 저장
     for f in request.files.getlist("scripts[]"):
         if f.filename.lower().endswith(".cs"):
-            f.save(os.path.join(tmp_dir, Path(f.filename).name))
+            f.save(os.path.join(upload_dir, Path(f.filename).name))
 
     # schema.json 처리
     schema_file = request.files.get("schema")
     if schema_file:
-        schema_file.save(os.path.join(tmp_dir, "schema.json"))
+        schema_file.save(os.path.join(upload_dir, "schema.json"))
     else:
         default_schema = Path(__file__).parent / "schema.json"
         if default_schema.exists():
-            shutil.copy(default_schema, os.path.join(tmp_dir, "schema.json"))
+            shutil.copy(default_schema, os.path.join(upload_dir, "schema.json"))
 
-    job_id = str(uuid.uuid4())
     JOBS[job_id] = {
         "status": "running",
         "result": "",
@@ -168,6 +187,9 @@ def analyze_pipeline():
         "created_at": time.time(),
         "agent_status": {"agent1": "pending", "agent2": "pending", "agent3": "pending", "agent4": "pending"},
         "steps": {},
+        "user_context": user_context,
+        "versions": [],
+        "upload_dir": upload_dir,
     }
 
     def on_progress(agent_key: str, status: str) -> None:
@@ -177,18 +199,23 @@ def analyze_pipeline():
     def run():
         try:
             pipeline_result = run_pipeline(
-                base_dir=tmp_dir,
+                base_dir=upload_dir,
                 user_context=user_context,
                 on_progress=on_progress,
             )
             JOBS[job_id]["result"] = pipeline_result["report"]
             JOBS[job_id]["steps"] = pipeline_result["steps"]
+            JOBS[job_id]["versions"] = [{
+                "version": 1,
+                "report": pipeline_result["report"],
+                "feedback": "",
+                "timestamp": time.time(),
+            }]
             JOBS[job_id]["status"] = "done"
         except Exception as e:
             JOBS[job_id]["error"] = str(e)
             JOBS[job_id]["status"] = "error"
         finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
             _cleanup_jobs()
 
     threading.Thread(target=run, daemon=True).start()
@@ -384,6 +411,87 @@ def save_thresholds():
         return jsonify({"error": f"숫자 형식 오류: {e}"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# 피드백 기반 재분석
+# ──────────────────────────────────────────────
+
+@app.route("/api/feedback/<job_id>", methods=["POST"])
+def submit_feedback(job_id):
+    """
+    이전 분석 결과에 피드백을 반영해 파이프라인 전체를 재실행.
+    JSON body: { "feedback": "..." }
+    반환: { "job_id": "...", "version": N }
+    """
+    job = JOBS.get(job_id)
+    if not job:
+        return jsonify({"error": "작업을 찾을 수 없습니다."}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "분석이 완료되지 않았습니다."}), 400
+
+    body = request.get_json(force=True, silent=True) or {}
+    feedback = body.get("feedback", "").strip()
+    if not feedback:
+        return jsonify({"error": "피드백을 입력해주세요."}), 400
+
+    upload_dir = job.get("upload_dir", "")
+    if not upload_dir or not os.path.isdir(upload_dir):
+        return jsonify({"error": "원본 파일을 찾을 수 없습니다. 파일을 다시 업로드해주세요."}), 400
+
+    original_ctx = job.get("user_context", "")
+    combined_context = (
+        f"[이전 분석 방향] {original_ctx}\n[피드백 — 이번 재분석 최우선 반영] {feedback}"
+        if original_ctx
+        else f"[피드백 — 최우선 반영] {feedback}"
+    )
+
+    version_num = len(job.get("versions", [])) + 1
+    new_job_id = str(uuid.uuid4())
+    prior_versions = list(job.get("versions", []))
+
+    JOBS[new_job_id] = {
+        "status": "running",
+        "result": "",
+        "error": "",
+        "created_at": time.time(),
+        "agent_status": {"agent1": "pending", "agent2": "pending", "agent3": "pending", "agent4": "pending"},
+        "steps": {},
+        "user_context": combined_context,
+        "versions": prior_versions,
+        "upload_dir": upload_dir,
+        "parent_job_id": job_id,
+        "version": version_num,
+    }
+
+    def run_feedback_job():
+        try:
+            def on_progress(agent_key: str, status: str) -> None:
+                if new_job_id in JOBS:
+                    JOBS[new_job_id]["agent_status"][agent_key] = status
+
+            pipeline_result = run_pipeline(
+                base_dir=upload_dir,
+                user_context=combined_context,
+                on_progress=on_progress,
+            )
+            JOBS[new_job_id]["result"] = pipeline_result["report"]
+            JOBS[new_job_id]["steps"] = pipeline_result["steps"]
+            JOBS[new_job_id]["versions"] = prior_versions + [{
+                "version": version_num,
+                "report": pipeline_result["report"],
+                "feedback": feedback,
+                "timestamp": time.time(),
+            }]
+            JOBS[new_job_id]["status"] = "done"
+        except Exception as e:
+            JOBS[new_job_id]["error"] = str(e)
+            JOBS[new_job_id]["status"] = "error"
+        finally:
+            _cleanup_jobs()
+
+    threading.Thread(target=run_feedback_job, daemon=True).start()
+    return jsonify({"job_id": new_job_id, "version": version_num})
 
 
 # ──────────────────────────────────────────────

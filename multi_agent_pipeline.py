@@ -399,17 +399,28 @@ def run_senior_designer(
     user_context: str = "",
 ) -> str:
     """Agent 1·2·3 결과를 종합하여 최종 밸런스 보고서를 작성한다."""
-    sections = [
+    sections = []
+    if user_context:
+        sections.append(
+            "## [사용자 분석 요청 — 최우선 반영]\n"
+            f"> **{user_context}**\n\n"
+            "위 사용자 요청을 보고서 전체에서 최우선으로 반영하세요. "
+            "모든 분석·제안·우선순위 결정이 이 방향에 집중되어야 합니다."
+        )
+    sections += [
         "## [Agent 1 — CSV 분석 결과]\n" + csv_result,
         "## [Agent 2 — 스크립트 분석 결과]\n" + script_result,
         "## [Agent 3 — 업계 가이드라인 리서치]\n" + guidelines,
     ]
-    if user_context:
-        sections.append("## [추가 컨텍스트]\n" + user_context)
+    user_req_note = (
+        f"\n\n⚠️ **사용자 분석 방향: \"{user_context}\"** — 이 관점을 보고서 전체에 우선 반영하세요."
+        if user_context else ""
+    )
     sections.append(
         "## 요청\n"
-        "위 세 에이전트의 분석을 종합하여 다음 구조의 최종 밸런스 보고서를 작성하세요. "
-        "**한국어 마크다운, 테이블과 수치를 적극 활용**하세요.\n\n"
+        "위 에이전트들의 분석을 종합하여 다음 구조의 최종 밸런스 보고서를 작성하세요. "
+        "**한국어 마크다운, 테이블과 수치를 적극 활용**하세요."
+        + user_req_note + "\n\n"
         "1. **종합 밸런스 평가** — 현재 게임 밸런스 전체 상태 총평\n"
         "2. **핵심 문제점** — CRITICAL / WARNING 분류, 우선순위 순\n"
         "3. **업계 기준 비교** — 가이드라인 대비 현재 수치 비교 테이블\n"

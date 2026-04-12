@@ -132,6 +132,32 @@
     textarea:focus { border-color: var(--accent); }
     textarea::placeholder { color: var(--text-dim); }
 
+    /* ── 분석 방향 입력 헤더 ── */
+    .user-req-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+    .optional-badge {
+      font-size: 0.72rem;
+      background: rgba(108,99,255,0.15);
+      color: var(--accent);
+      border: 1px solid rgba(108,99,255,0.3);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-weight: 600;
+    }
+
+    /* ── 내보내기 버튼 그룹 ── */
+    .export-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .btn-row { display: flex; gap: 12px; }
 
     button.primary {
@@ -447,6 +473,103 @@
     .badge-ok       { background: rgba(76,222,154,0.15);  color: var(--ok);       border: 1px solid rgba(76,222,154,0.3); }
     .badge-info     { background: rgba(108,99,255,0.15);  color: var(--accent);   border: 1px solid rgba(108,99,255,0.3); }
 
+    /* ── 버전 탭 ── */
+    #version-tabs {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .version-tab {
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text-dim);
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .version-tab:hover { border-color: var(--accent); color: var(--text); }
+    .version-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .version-tab.compare-btn { border-style: dashed; }
+    .version-tab.compare-btn.active { background: transparent; color: var(--accent); }
+
+    /* ── 피드백 섹션 ── */
+    #feedback-section {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-top: 4px;
+    }
+    .feedback-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #feedback-input {
+      width: 100%;
+      background: #15182a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.88rem;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 72px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+    #feedback-input:focus { outline: none; border-color: var(--accent); }
+    #feedback-input::placeholder { color: var(--text-dim); }
+    #feedback-btn { align-self: flex-end; }
+
+    /* ── 비교 패널 ── */
+    #compare-panel {
+      display: none;
+      width: 100%;
+      max-width: 760px;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .compare-col {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      overflow: hidden;
+    }
+    .compare-col select {
+      width: 100%;
+      background: #15182a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.83rem;
+      padding: 6px 10px;
+      margin-bottom: 12px;
+      cursor: pointer;
+    }
+    .compare-col select:focus { outline: none; border-color: var(--accent); }
+    .compare-content {
+      font-size: 0.82rem;
+      line-height: 1.7;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
     /* scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -475,7 +598,12 @@
 
   <!-- Controls -->
   <div class="controls">
-    <textarea id="context-input" placeholder="추가 설명 (선택사항) — 예: '이 게임은 RPG이고 레벨 캡은 100입니다'"></textarea>
+    <div class="user-req-header">
+      <span>🎯</span>
+      <span>분석 방향 지정</span>
+      <span class="optional-badge">선택</span>
+    </div>
+    <textarea id="context-input" placeholder="예: '스킬 DPS 불균형 위주로 봐줘' / '화염 속성이 너무 강한지 확인해줘' / '레벨 1~10 구간 성장 밸런스에 집중해줘'"></textarea>
     <div class="btn-row">
       <button class="primary" id="analyze-btn" onclick="startAnalysis()" disabled>기본 분석</button>
       <button class="primary pipeline-btn" id="pipeline-btn" onclick="startPipeline()" disabled>🤖 멀티 에이전트 분석</button>
@@ -588,18 +716,62 @@
 
   <!-- Result (기본 분석 or 파이프라인 최종 보고서) -->
   <div id="result-wrap">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <!-- 버전 탭 -->
+    <div id="version-tabs"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <div class="result-label" id="result-label">분석 결과</div>
-      <button class="secondary" id="export-btn" onclick="exportToHtml()" style="padding:8px 16px;font-size:0.82rem;">
-        💾 HTML로 저장
-      </button>
+      <div class="export-btns">
+        <button class="secondary" onclick="copyToClipboard(event)" style="padding:8px 14px;font-size:0.82rem;">
+          📋 클립보드 복사
+        </button>
+        <button class="secondary" onclick="downloadAsMarkdown()" style="padding:8px 14px;font-size:0.82rem;">
+          ⬇️ .md 저장
+        </button>
+        <button class="secondary" id="export-btn" onclick="exportToHtml()" style="padding:8px 14px;font-size:0.82rem;">
+          💾 HTML로 저장
+        </button>
+      </div>
     </div>
     <div id="result-box" class="md-content"></div>
+
+    <!-- 피드백 섹션 -->
+    <div id="feedback-section">
+      <div class="feedback-header">
+        <span>💬</span>
+        <span>피드백으로 재분석</span>
+        <span class="optional-badge" id="feedback-version-badge">v2 생성</span>
+      </div>
+      <textarea id="feedback-input" rows="3"
+        placeholder="예: '화염 속성 스킬의 DPS가 다른 속성보다 30% 이상 높은데 더 자세히 분석해줘' / '레벨 구간별 성장 곡선 부분이 빠졌어, 추가해줘'"></textarea>
+      <button id="feedback-btn" class="primary" onclick="submitFeedback()">🔄 재분석 요청</button>
+    </div>
+  </div>
+
+  <!-- 버전 비교 패널 -->
+  <div id="compare-panel">
+    <div class="compare-grid">
+      <div class="compare-col">
+        <select id="compare-left" onchange="renderCompare()"></select>
+        <div id="compare-left-box" class="compare-content md-content"></div>
+      </div>
+      <div class="compare-col">
+        <select id="compare-right" onchange="renderCompare()"></select>
+        <div id="compare-right-box" class="compare-content md-content"></div>
+      </div>
+    </div>
   </div>
 
   <script>
     let collectedFiles = [];
     let collectedScripts = [];
+    let lastResultMarkdown = '';
+
+    // 버전 관리
+    let currentJobId = '';
+    let versionsHistory = [];
+    let activeVersion = 1;
+    let compareMode = false;
 
     // ── Drag & Drop ──────────────────────────────────────
 
@@ -705,12 +877,19 @@
     function clearFiles() {
       collectedFiles = [];
       collectedScripts = [];
+      currentJobId = '';
+      versionsHistory = [];
+      activeVersion = 1;
+      compareMode = false;
       document.getElementById('file-list-wrap').style.display = 'none';
       document.getElementById('analyze-btn').disabled = true;
       document.getElementById('pipeline-btn').disabled = true;
       document.getElementById('result-wrap').style.display = 'none';
       document.getElementById('pipeline-wrap').style.display = 'none';
       document.getElementById('agent-steps-wrap').style.display = 'none';
+      document.getElementById('version-tabs').style.display = 'none';
+      document.getElementById('feedback-section').style.display = 'none';
+      document.getElementById('compare-panel').style.display = 'none';
       setStatus('');
     }
 
@@ -747,6 +926,7 @@
           setStatus(`Claude AI 분석 중${'...'.slice(0, (Date.now() / 500 | 0) % 4 + 1)}`, '');
         });
 
+        lastResultMarkdown = result.result || '';
         resultBox.innerHTML = renderMarkdown(result.result);
         setStatus('분석 완료', 'ok');
       } catch (err) {
@@ -784,6 +964,7 @@
         const res = await fetch('/api/analyze/pipeline', { method: 'POST', body: formData });
         if (!res.ok) throw new Error(`서버 오류 ${res.status}`);
         const { job_id } = await res.json();
+        currentJobId = job_id;
 
         setStatus('멀티 에이전트 파이프라인 실행 중...', '');
 
@@ -807,8 +988,17 @@
         const resultBox = document.getElementById('result-box');
         document.getElementById('result-label').textContent = '최종 밸런스 보고서 (Agent 4)';
         resultWrap.style.display = 'flex';
-        resultBox.innerHTML = renderMarkdown(finalData.result || '(결과 없음)');
 
+        // 버전 히스토리 초기화 (v1)
+        versionsHistory = finalData.versions && finalData.versions.length > 0
+          ? finalData.versions
+          : [{ version: 1, report: finalData.result || '', feedback: '', timestamp: Date.now() / 1000 }];
+        activeVersion = 1;
+        lastResultMarkdown = versionsHistory[0].report;
+        resultBox.innerHTML = renderMarkdown(lastResultMarkdown || '(결과 없음)');
+
+        renderVersionTabs();
+        showFeedbackSection();
         setStatus('파이프라인 완료', 'ok');
       } catch (err) {
         setStatus('파이프라인 실패: ' + err.message, 'error');
@@ -1005,6 +1195,186 @@
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // ── 클립보드 복사 ─────────────────────────────────────
+
+    function copyToClipboard(event) {
+      const text = lastResultMarkdown;
+      if (!text || !text.trim()) return;
+
+      const btn = event.currentTarget;
+      const original = btn.innerHTML;
+
+      navigator.clipboard.writeText(text).then(() => {
+        btn.innerHTML = '✅ 복사됨';
+        setTimeout(() => { btn.innerHTML = original; }, 2000);
+      }).catch(() => {
+        // 구형 브라우저 폴백
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.innerHTML = '✅ 복사됨';
+        setTimeout(() => { btn.innerHTML = original; }, 2000);
+      });
+    }
+
+    // ── .md 파일 다운로드 ─────────────────────────────────
+
+    function downloadAsMarkdown() {
+      const text = lastResultMarkdown;
+      if (!text || !text.trim()) return;
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const dateStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      const versionSuffix = versionsHistory.length > 0 ? `_v${activeVersion}` : '';
+      const filename = `밸런스분석${versionSuffix}_${dateStr}.md`;
+
+      const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ── 버전 탭 렌더링 ────────────────────────────────────
+
+    function renderVersionTabs() {
+      const tabs = document.getElementById('version-tabs');
+      if (versionsHistory.length === 0) { tabs.style.display = 'none'; return; }
+
+      const tabHtml = versionsHistory.map(v =>
+        `<button class="version-tab${v.version === activeVersion ? ' active' : ''}"
+                 onclick="showVersion(${v.version})">
+           v${v.version}${v.feedback ? ' 💬' : ''}
+         </button>`
+      ).join('');
+
+      const compareLabel = compareMode ? '✕ 비교 닫기' : '⇄ 버전 비교';
+      const compareCls = compareMode ? 'version-tab compare-btn active' : 'version-tab compare-btn';
+      tabs.innerHTML = tabHtml +
+        `<button class="${compareCls}" onclick="toggleCompare()">${compareLabel}</button>`;
+      tabs.style.display = 'flex';
+    }
+
+    function showVersion(versionNum) {
+      const entry = versionsHistory.find(v => v.version === versionNum);
+      if (!entry) return;
+      activeVersion = versionNum;
+      lastResultMarkdown = entry.report;
+      document.getElementById('result-box').innerHTML = renderMarkdown(entry.report || '(결과 없음)');
+      renderVersionTabs();
+      if (compareMode) renderCompare();
+    }
+
+    // ── 피드백 섹션 표시 ─────────────────────────────────
+
+    function showFeedbackSection() {
+      const section = document.getElementById('feedback-section');
+      const badge = document.getElementById('feedback-version-badge');
+      badge.textContent = `v${versionsHistory.length + 1} 생성`;
+      section.style.display = 'flex';
+    }
+
+    // ── 피드백 제출 ──────────────────────────────────────
+
+    async function submitFeedback() {
+      const input = document.getElementById('feedback-input');
+      const btn = document.getElementById('feedback-btn');
+      const feedback = input.value.trim();
+      if (!feedback || !currentJobId) return;
+
+      btn.disabled = true;
+      btn.textContent = '🔄 재분석 중...';
+      resetAgentCards();
+      document.getElementById('pipeline-wrap').style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/feedback/${currentJobId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedback }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `서버 오류 ${res.status}`);
+        }
+        const { job_id, version } = await res.json();
+        currentJobId = job_id;
+
+        setStatus(`v${version} 재분석 중...`, '');
+
+        const finalData = await pollUntilDone(job_id, data => {
+          if (data.agent_status) updateAgentCards(data.agent_status);
+        });
+
+        if (finalData.agent_status) updateAgentCards(finalData.agent_status);
+        if (finalData.steps) showAgentSteps(finalData.steps);
+
+        versionsHistory = finalData.versions && finalData.versions.length > 0
+          ? finalData.versions
+          : versionsHistory.concat([{ version, report: finalData.result || '', feedback, timestamp: Date.now() / 1000 }]);
+
+        activeVersion = version;
+        lastResultMarkdown = (versionsHistory.find(v => v.version === version) || {}).report || finalData.result || '';
+        document.getElementById('result-box').innerHTML = renderMarkdown(lastResultMarkdown || '(결과 없음)');
+        input.value = '';
+        renderVersionTabs();
+        showFeedbackSection();
+        setStatus(`v${version} 재분석 완료`, 'ok');
+      } catch (err) {
+        setStatus('재분석 실패: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 재분석 요청';
+        document.getElementById('pipeline-wrap').style.display = 'none';
+      }
+    }
+
+    // ── 버전 비교 ─────────────────────────────────────────
+
+    function toggleCompare() {
+      compareMode = !compareMode;
+      const panel = document.getElementById('compare-panel');
+      if (compareMode) {
+        panel.style.display = 'block';
+        buildCompareSelects();
+        renderCompare();
+      } else {
+        panel.style.display = 'none';
+      }
+      renderVersionTabs();
+    }
+
+    function buildCompareSelects() {
+      const leftSel = document.getElementById('compare-left');
+      const rightSel = document.getElementById('compare-right');
+      const options = versionsHistory.map(v =>
+        `<option value="${v.version}">v${v.version}${v.feedback ? ' 💬' : ''}</option>`
+      ).join('');
+      leftSel.innerHTML = options;
+      rightSel.innerHTML = options;
+      // 기본값: 왼쪽 v1, 오른쪽 최신
+      leftSel.value = versionsHistory[0].version;
+      rightSel.value = versionsHistory[versionsHistory.length - 1].version;
+    }
+
+    function renderCompare() {
+      const leftNum = parseInt(document.getElementById('compare-left').value, 10);
+      const rightNum = parseInt(document.getElementById('compare-right').value, 10);
+      const leftEntry = versionsHistory.find(v => v.version === leftNum);
+      const rightEntry = versionsHistory.find(v => v.version === rightNum);
+      document.getElementById('compare-left-box').innerHTML = leftEntry
+        ? renderMarkdown(leftEntry.report) : '';
+      document.getElementById('compare-right-box').innerHTML = rightEntry
+        ? renderMarkdown(rightEntry.report) : '';
     }
 
     // ── 마크다운 렌더링 + 심각도 뱃지 ────────────────────
